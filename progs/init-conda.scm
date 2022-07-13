@@ -24,20 +24,32 @@
        (filter
         (lambda (x) (not (string-starts? x "#")))
         (string-split (var-eval-system "conda env list") #\nl))))
-  
-(define (conda-launcher env)
+
+(define (conda-versions-paths)
+  (map (lambda (x) (with l (string-split x #\space) 
+                     `(,(first l) ,(last l))))
+     (filter
+       (lambda (x) (not (string-starts? (string-trim-spaces x) "#")))
+       (string-split (var-eval-system "conda env list") #\nl))))
+
+(define (conda-name-to-launcher env)
   (string-append (conda-path env)
                  "/bin/python "
                  (python-entry)))
 
+(define (conda-launcher x)
+ (string-append (cadr x)
+                "/bin/python "
+                (python-entry)))
+
 (define (other-conda-launchers)
-  (map (lambda (name) (list :launch name (conda-launcher name)))
+  (map (lambda (x) (list :launch (car x) (conda-launcher x)))
        (filter
-         (lambda (x) (not (== x "base")))
-         (conda-versions))))
+         (lambda (x) (and (not (== (car x) "base")) (file-exists? (cadr x))))
+         (conda-versions-paths))))
 
 (define (conda-launchers)
-  (cons (list :launch (conda-launcher "base"))
+  (cons (list :launch (conda-name-to-launcher "base"))
     (other-conda-launchers)))
 
 (plugin-configure python 
